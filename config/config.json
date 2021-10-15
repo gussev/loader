@@ -17,7 +17,7 @@
   ],
   "loops": 200000,
   "wait": 10,
-  "goroutines": 2,
+  "goroutines": 10,
   "_wait_duration_type": "Microsecond",
   "wait_duration_type": "Millisecond",
   "_wait_duration_type": "Second",

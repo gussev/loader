@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"image"
 	"image/png"
@@ -16,7 +15,7 @@ import (
 )
 
 
-var cache = NewCache()
+
 func main() {
 	config,err := readConfig("config//config.json")
 	if err != nil {
@@ -25,29 +24,74 @@ func main() {
 	fmt.Println(config)
 	config.SleepBeforeStart()
 	config.RunProfileServer()
+	cache := NewCache()
+	run_me := sync.NewCond(&sync.Mutex{})
+	run_me.L.Lock()
+	prepare_images(config,cache,run_me)
+	fmt.Println("about to wait")
+	run_me.Wait()
+	fmt.Println("leaving wait")
 	wg := sync.WaitGroup{}
-	for i :=0; i< config.Goroutines; i++{
-		wg.Add(1)
-		go run_me(config,&wg)
-	}
+
+	run_loader(cache ,config, &wg)
 	wg.Wait()
 }
 
-func run_me(c* Config,wg *sync.WaitGroup){
-	defer wg.Done()
-	for i :=0; i< c.Loops; i++{
-		files := c.Files
-		for _, one := range files {
-			err := file_processing(one.Name,c)
-			if err != nil{
-				fmt.Println(err)
-			}
-		}
-		c.Sleep()
+func run_loader(cache *Cache,config* Config,wg *sync.WaitGroup){
+	for i :=0; i< config.Goroutines; i++{
+		wg.Add(1)
+		go run_image(cache,config,wg)
 	}
 }
-type convert func (name string) (str_image *string,err error)
+func run_image(cache *Cache,config* Config,wg *sync.WaitGroup){
+	defer wg.Done()
+	for i :=0; i< config.Loops; i++{
+		walk_over_images(cache ,config)
+		config.Sleep()
+	}
+}
 
+func walk_over_images(cache *Cache, config *Config) {
+	for name := range cache.Data(){
+		mfile := cache.GetMFile(name)
+		if mfile.str_image == nil{
+			fmt.Println("name:",name," not ready yet")
+			continue
+		}
+		canvasdata := url.Values{}
+		canvasdata.Set("canvasdata", *(mfile.str_image))
+		resp, err := http.PostForm("http://localhost:8080/digit", canvasdata)
+		delete(canvasdata,"canvasdata")
+		canvasdata = nil
+		defer resp.Body.Close()
+		if err != nil {
+			panic(err)
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			panic(err)
+		}
+
+		config.Print_Response(body)
+	}
+}
+
+func prepare_images(c* Config,cache *Cache,run_me *sync.Cond){
+	files := c.Files
+	for _, one := range files {
+		go file_processing(one.Name,cache,run_me)
+	}
+}
+
+func file_processing(name string,cache * Cache,run_me *sync.Cond) {
+	mfile := cache.GetMFile(name)
+	mfile.mx.Lock()
+	defer mfile.mx.Unlock()
+	defer run_me.Signal()
+	mfile.str_image, _ = to_string(name)
+}
 func to_string(name string) (str_image *string,err error){
 	file, err := os.Open(name)
 	defer file.Close()
@@ -66,31 +110,6 @@ func to_string(name string) (str_image *string,err error){
 	encoded := "data:image/png;base64,"+base64.StdEncoding.EncodeToString(buf2.Bytes())
 	buf2.Reset()
 	return &encoded,nil
-}
-func file_processing(name string,c* Config) (err error){
-	str_image,err := cache.Get(name,to_string)
-	if str_image == nil {
-		return errors.New("not able to read file:"+name)
-	}
-
-	canvasdata := url.Values{}
-	canvasdata.Set("canvasdata", *str_image)
-	resp, err := http.PostForm("http://localhost:8080/digit", canvasdata)
-	delete(canvasdata,"canvasdata")
-	canvasdata = nil
-	defer resp.Body.Close()
-	if err != nil {
-		return err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return err
-	}
-
-	c.Print_Response(body)
-	return nil
 }
 
 func readConfig(path_to_file string) (*Config,error){

@@ -5,25 +5,28 @@ import (
 )
 
 func NewCache() *Cache{
-	return &Cache{make(map[string]*string),sync.Mutex{}}
+	return &Cache{make(map[string]*MFile),sync.Mutex{}}
 }
 
+type MFile struct{
+	str_image *string
+	mx sync.Mutex
+}
 type Cache struct{
-	data map[string] *string
+	data map[string] *MFile
 	mx sync.Mutex
 }
 
-func (c *Cache)Get(key string,convert func(name string) ( *string, error)) (*string,error){
+func (c *Cache)Data() (map[string] *MFile){
+	return c.data
+}
+
+func (c *Cache) GetMFile(name string)*MFile{
 	c.mx.Lock()
 	defer c.mx.Unlock()
-	str_image := c.data[key]
-	if str_image != nil{
-		return str_image,nil
+	if c.data[name] != nil{
+		return c.data[name]
 	}
-	str_image,err := convert(key)
-	if err != nil{
-		return nil,err
-	}
-	c.data[key] = str_image
-	return str_image,nil
+	c.data[name] = &MFile{nil,sync.Mutex{}}
+	return c.data[name]
 }
