@@ -1,0 +1,25 @@
+{
+  "version": "0.0.0",
+  "_profile": false,
+  "profile": true,
+  "print_response": false,
+  "files": [
+    {"file": "zero_0.png"},
+    {"file": "one_1.png"},
+    {"file": "two_2.png"},
+    {"file": "three_3.png"},
+    {"file": "four_4.png"},
+    {"file": "five_5.png"},
+    {"file": "six_6.png"},
+    {"file": "seven_7.png"},
+    {"file": "eight_8.png"},
+    {"file": "nine_9.png"}
+  ],
+  "loops": 200000,
+  "wait": 10,
+  "goroutines": 2,
+  "_wait_duration_type": "Microsecond",
+  "wait_duration_type": "Millisecond",
+  "_wait_duration_type": "Second",
+  "sleep_in_seconds_before_start": 5
+}
