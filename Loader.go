@@ -54,7 +54,7 @@ func run_image(cache *Cache,config* Config,wg *sync.WaitGroup){
 func walk_over_images(cache *Cache, config *Config) {
 	for name := range cache.Data(){
 		mfile := cache.GetMFile(name)
-		if mfile.str_image == nil{
+		if mfile.str_image == nil{// possible not an atomic operation ?
 			fmt.Println("name:",name," not ready yet")
 			continue
 		}
